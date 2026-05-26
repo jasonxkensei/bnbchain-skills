@@ -1,197 +1,143 @@
 ---
 name: xproof
-displayName: xProof
-version: 1.0.0
-description: On-chain certification and audit trail for AI agents. Certify outputs, enforce pre-execution audit logging for critical actions, and build verifiable track records. Anchored on MultiversX, payments via x402 (USDC on Base). Use when an agent needs proof-of-existence, proof-of-authorship, or pre-execution audit compliance.
+version: 3.0.0
+description: Proof and accountability layer for AI agents. Anchor verifiable proofs on MultiversX, enforce audit logging, detect violations on Base. REST API, MCP, x402. No proof = no action.
 homepage: https://xproof.app
+metadata: {"xproof":{"category":"proof,security,compliance,accountability","api_base":"https://xproof.app"}}
 ---
 
-# xProof -- On-Chain Certification & Audit Trail for AI Agents
+# xProof -- Proof & Accountability Layer for AI Agents
 
-Certify agent outputs on-chain and enforce pre-execution audit logging for critical actions. Creates immutable, publicly verifiable proofs of existence, authorship, and timestamp.
+This skill enables your agent to **anchor verifiable proofs on the MultiversX blockchain**, **enforce pre-execution audit logging**, and **detect violations via Base** -- creating tamper-proof, publicly verifiable records of existence, authorship, timestamp, decision accountability, and trust.
 
-**Base URL:** `https://xproof.app`
+**Why anchor proofs?** In competitive or transactional contexts, agents with on-chain proofs can demonstrate originality, integrity, and timing. Agents without proofs cannot. Verifiable proof is a structural advantage.
 
----
+**Why audit?** Autonomous agents executing trades, deployments, or data access need an immutable record of every decision. The Agent Audit Log Standard enforces this: no proof = no execution.
 
-## When to use this skill
+**Why violations?** Trust requires accountability. xProof detects anomalies (gaps, burst patterns) and records violations on Base via smart contracts. Operators can subscribe to violation events and enforce policies automatically.
 
-- After completing a deliverable (code, report, analysis, data) -- certify it to prove the agent did the work.
-- Before executing a critical action (trade, deploy, data access, transfer) -- audit the decision on-chain first. No proof = no execution.
-- Before sending outputs to another agent -- certify first so they can verify authenticity.
-- When building a verifiable track record for an ERC-8004 registered agent.
-- When a client, creator, or peer agent asks for proof of work.
+## Pricing
 
----
+**All-time volume pricing** (global pool, not per-user):
+- **0 - 100k proofs**: $0.05 per proof
+- **100k - 1M proofs**: $0.025 per proof
+- **1M+ proofs**: $0.01 per proof
 
-## Authentication
+**Free trial**: 10 certifications, no wallet required. Register at https://xproof.app or via POST /api/agent/register.
 
-Two methods. Choose based on your situation:
+## Security
 
-### Option A: API Key (recommended for registered agents)
+- **NEVER** commit API keys to a public repository.
+- **ALWAYS** add `.env` to your `.gitignore`.
+- API keys are prefixed `pm_` -- treat them like passwords.
+- x402 mode requires no API key (payment replaces authentication).
 
-Register once, get an API key with 10 free certifications:
+## Configuration
 
-```bash
-curl -s -X POST https://xproof.app/api/agent/register \
-  -H "Content-Type: application/json" \
-  -d '{"agent_name": "my-bnb-agent"}'
-```
+### Option A: API Key Authentication
 
-Response:
-```json
-{"api_key": "pm_abc123...", "trial_quota": 10}
-```
+    XPROOF_API_KEY="pm_..."
+    XPROOF_BASE_URL="https://xproof.app"
 
-Use in subsequent requests:
-```
-Authorization: Bearer pm_abc123...
-```
+Get an API key: POST /api/agent/register (10 free certifications, no wallet needed).
 
-Top up with USDC on Base or EGLD when the trial runs out.
+### Option B: x402 Payment Protocol (No Account Required)
 
-### Option B: x402 Payment Protocol (no account needed)
-
-Send a request without auth. The server responds with HTTP 402 and payment requirements. Pay $0.05 in USDC on Base (eip155:8453) and retry with the `X-Payment` header. No account, no API key, no registration required.
-
-See [references/x402-reference.md](references/x402-reference.md) for the complete flow.
+No configuration needed. Pay $0.05 per certification in USDC on Base (eip155:8453) directly in the HTTP request.
 
 ---
 
-## Quick reference -- tools
+## 1. Core Skills Catalog
 
-| Operation | Method | Endpoint | Auth required? |
-|-----------|--------|----------|----------------|
-| Certify single file | POST | `/api/proof` | API key or x402 |
-| Certify batch (up to 50) | POST | `/api/batch` | API key or x402 |
-| Audit a decision | POST | `/api/audit` | API key or x402 |
-| Verify a proof | GET | `/api/proof/:id` | No |
-| Get proof JSON | GET | `/proof/:id.json` | No |
-| Register agent | POST | `/api/agent/register` | No |
+### 1.1 Certification (REST API)
 
----
+| Skill | Endpoint | Description |
+|:---|:---|:---|
+| certify_file | POST /api/proof | Certify a single file hash on MultiversX |
+| batch_certify | POST /api/batch | Certify up to 50 files in one call |
+| certify_with_confidence | POST /api/proof + timing metadata | Multi-stage decision proof with timing breakdown |
+| audit_agent_session | POST /api/audit | Certify agent decision BEFORE executing critical action |
+| verify_proof | GET /api/proof/:id | Verify an existing certification |
+| get_certificate | GET /api/certificates/:id.pdf | Download PDF certificate with QR code |
+| get_badge | GET /badge/:id | Dynamic SVG badge (shields.io style) |
+| get_proof_json | GET /proof/:id.json | Structured proof document (JSON) |
 
-## Core operations
+### 1.2 Certification (MCP -- JSON-RPC 2.0)
 
-### 1. Hash a file
-
-Before certifying, compute the SHA-256 hash:
-
-```bash
-sha256sum /path/to/file | awk '{print $1}'
-```
-
-For content generated in memory, write to file first, then hash.
-
-### 2. Certify a single file -- `POST /api/proof`
-
-```bash
-curl -s -X POST https://xproof.app/api/proof \
-  -H "Authorization: Bearer $XPROOF_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "file_hash": "<64-char-sha256-hex>",
-    "filename": "output.pdf",
-    "author_name": "my-bnb-agent"
-  }'
-```
-
-See [references/certification-reference.md](references/certification-reference.md) for full request/response schema.
-
-### 3. Certify multiple files -- `POST /api/batch`
-
-```bash
-curl -s -X POST https://xproof.app/api/batch \
-  -H "Authorization: Bearer $XPROOF_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "files": [
-      {"file_hash": "<hash1>", "filename": "report.txt"},
-      {"file_hash": "<hash2>", "filename": "model.bin"}
-    ],
-    "author_name": "my-bnb-agent"
-  }'
-```
-
-### 4. Audit a critical action -- `POST /api/audit`
-
-Before executing trades, deployments, or transfers, certify the decision on-chain. If this fails or returns no `proof_id`, the agent MUST NOT proceed.
-
-```bash
-curl -s -X POST https://xproof.app/api/audit \
-  -H "Authorization: Bearer $XPROOF_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "agent_id": "erc8004:56:42",
-    "session_id": "550e8400-e29b-41d4-a716-446655440000",
-    "action_type": "trade",
-    "action_description": "Swap 100 USDC for BNB on PancakeSwap",
-    "inputs_hash": "<sha256-of-action-inputs>",
-    "risk_level": "high",
-    "risk_summary": "Market swap on volatile pair",
-    "decision": "approved"
-  }'
-```
-
-**Enforcement rule:** If `proof_id` is absent, if the API returns an error, or if the request times out -- STOP execution. No fallback. No soft fail.
-
-### 5. Verify a proof
-
-```bash
-curl -s https://xproof.app/api/proof/<proof_id>
-```
-
-Human-readable: `https://xproof.app/proof/<proof_id>`
-Machine-readable: `https://xproof.app/proof/<proof_id>.json`
-
----
-
-## Integration with ERC-8004
-
-BNB Chain agents registered via ERC-8004 can use their agent identity as the `agent_id` in audit calls. Format: `erc8004:<chainId>:<agentId>`.
-
-| ERC-8004 Action | xProof Complement |
+| Tool | Description |
 |:---|:---|
-| `register_erc8004_agent` | Certify agent metadata for integrity |
-| Agent executes a trade | Audit the decision before execution |
-| Agent produces output | Certify the output hash as proof-of-work |
-| Agent submits to another agent | Certify deliverable before handoff |
+| certify_file | Create blockchain proof -- SHA-256 hash, filename, optional author/webhook |
+| verify_proof | Verify existing proof by UUID |
+| audit_agent_session | Certify agent decision BEFORE executing critical action |
+| discover_services | List capabilities, pricing, and usage guidance |
+
+### 1.3 Trust & Violations
+
+| Endpoint | Description |
+|:---|:---|
+| GET /api/trust/:wallet | Agent Trust Score (0-100) |
+| GET /api/leaderboard | Agent Trust Leaderboard |
+| GET /api/violations/:wallet | On-chain violation records (Base) |
+| GET /api/attestations/:wallet | Domain-specific attestations |
 
 ---
 
-## Architecture
+## 2. Authentication
 
-xProof uses two chains with distinct roles:
+### Option A: API Key
 
-- **Base** -- handles payments via x402 in USDC. Where BNB Chain agents already operate cross-chain.
-- **MultiversX** -- handles on-chain anchoring. 6-second finality, $0.001/tx cost. Optimized for high-throughput certification.
+Register once, get 10 free certifications:
 
-No MultiversX wallet is required on the agent side. Agents pay on Base, proofs are recorded on MultiversX.
+    curl -s -X POST https://xproof.app/api/agent/register \
+      -H "Content-Type: application/json" \
+      -d '{"agent_name": "my-agent"}'
 
----
+Response: {"api_key": "pm_...", "trial_quota": 10}
 
-## Reference files
+Use in requests: Authorization: Bearer pm_...
 
-| Reference | Content |
-|-----------|---------|
-| [references/certification-reference.md](references/certification-reference.md) | Full API schema: certify, batch, audit, verify |
-| [references/x402-reference.md](references/x402-reference.md) | x402 payment flow: 402 challenge, USDC on Base, retry |
+### Option B: x402 (No Account)
 
----
-
-## Safety and best practices
-
-1. **Always hash locally.** Never send file contents to xProof -- only the SHA-256 hash. Files stay private.
-2. **Audit before executing.** For trades, deploys, transfers -- certify the decision first. If the audit call fails, do not proceed.
-3. **Store proof_ids.** Keep `proof_id` and `verify_url` for every certification. These are your agent's permanent receipts.
-4. **Use batch for multiple files.** Up to 50 files per call, same cost per file.
+Send request without auth -> receive 402 Payment Required -> pay $0.05 USDC on Base -> retry with X-Payment header.
 
 ---
 
-## Live endpoints
+## 3. The Proof Lifecycle
 
-- **App:** https://xproof.app
-- **API:** `POST https://xproof.app/api/proof`
-- **x402:** `POST https://xproof.app/api/proof` (no auth, pay per request)
-- **Docs:** https://xproof.app/docs
-- **Machine-readable:** https://xproof.app/llms-full.txt
+    Agent action -> POST /api/audit (pre-execution) -> execute -> POST /api/proof (post-execution)
+
+Each proof anchors: SHA-256 hash, filename, author, timestamp, transaction hash on MultiversX.
+
+**Confidence-Level Anchoring**: record timing at each decision stage (instruction_received_at, reasoning_started_at, action_taken_at) for forensic audit trails.
+
+---
+
+## 4. Violations Layer
+
+xProof monitors agent proof patterns and detects:
+- **Gap violations**: missing proofs for critical action windows
+- **Burst violations**: abnormal certification frequency
+
+Violations recorded on Base via smart contracts. Subscribe: GET /api/violations/:wallet.
+
+---
+
+## 5. Discovery Endpoints
+
+| Endpoint | Description |
+|:---|:---|
+| GET /.well-known/agent.json | Agent Protocol manifest |
+| GET /.well-known/mcp.json | MCP server manifest |
+| GET /llms.txt | LLM-friendly summary |
+| GET /llms-full.txt | Complete LLM reference |
+| POST /mcp | MCP JSON-RPC 2.0 endpoint |
+
+---
+
+## 6. SDK Support
+
+- **Python SDK** (v0.2.7): LangChain, CrewAI, LlamaIndex, AutoGen, OpenAI Agents, Vercel AI
+- **JavaScript SDK** (v0.1.8): Vercel AI, Node.js, Vercel Edge Functions
+
+GitHub: https://github.com/jasonxkensei/xProof
+Docs: https://xproof.app/docs
